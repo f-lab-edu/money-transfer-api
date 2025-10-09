@@ -1,4 +1,4 @@
-package com.money.transfer.authentication.common;
+package com.money.transfer.user.common;
 
 import com.money.transfer.user.domain.User;
 import com.money.transfer.user.domain.entity.UserEntity;

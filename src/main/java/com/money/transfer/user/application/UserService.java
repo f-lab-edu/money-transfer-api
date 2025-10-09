@@ -1,6 +1,6 @@
 package com.money.transfer.user.application;
 
-import com.money.transfer.authentication.common.UserMapper;
+import com.money.transfer.user.common.UserMapper;
 import com.money.transfer.user.domain.User;
 import com.money.transfer.user.domain.UserEntityRepository;
 import com.money.transfer.user.presentation.request.UserJoinRequest;
