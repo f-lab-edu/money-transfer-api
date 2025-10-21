@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.money.transfer.common.BaseControllerTest;
+import com.money.transfer.exception.UserException;
 import com.money.transfer.user.application.UserService;
 import com.money.transfer.user.domain.User;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,19 +49,21 @@ class UserControllerTest extends BaseControllerTest {
     }
 
     @Test
-    void join_fail_by_blankEmail() throws Exception {
+    void join_fail_duplicateEmail() throws Exception {
         // given
         final String requestJson = """
-                        {"name": "abcd", "password": "Abcdef1!"}
-                """;
+            {"name": "abcd", "email": "abcd@test.com", "password": "Abcdef1!"}
+        """;
+
+        when(userService.join(any()))
+                .thenThrow(new UserException(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."));
 
         // when & then
         mockMvc.perform(post("/api/users/join")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestJson))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.email")
-                        .value("이메일은 필수입니다."));
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("이미 사용 중인 이메일입니다."));
     }
 
     @Test
@@ -74,7 +79,39 @@ class UserControllerTest extends BaseControllerTest {
                         .content(requestJson))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.email")
-                        .value("유효한 이메일 형식이어야 합니다."));
+                        .value(messageSource.getMessage("user.email.invalid", null, LocaleContextHolder.getLocale())));
+    }
+
+    @Test
+    void join_fail_by_blankEmail() throws Exception {
+        // given
+        final String requestJson = """
+                        {"name": "abcd", "password": "Abcdef1!"}
+                """;
+
+        // when & then
+        mockMvc.perform(post("/api/users/join")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.email")
+                        .value(messageSource.getMessage("user.email.notBlank", null, LocaleContextHolder.getLocale())));
+    }
+
+    @Test
+    void join_fail_by_blankName() throws Exception {
+        // given
+        final String requestJson = """
+                        {"email": "abcd@test.com", "password": "Abcdef1!"}
+                """;
+
+        // when & then
+        mockMvc.perform(post("/api/users/join")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.name")
+                        .value(messageSource.getMessage("user.name.notBlank", null, LocaleContextHolder.getLocale())));
     }
 
     @Test
@@ -92,7 +129,7 @@ class UserControllerTest extends BaseControllerTest {
                         .content(requestJson))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.password")
-                        .value("비밀번호는 8자 이상 21자 이하이어야 합니다."));
+                        .value(messageSource.getMessage("user.password.size", null, LocaleContextHolder.getLocale())));
     }
 
     @Test
@@ -110,7 +147,7 @@ class UserControllerTest extends BaseControllerTest {
                         .content(requestJson))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.password")
-                        .value("비밀번호는 8자 이상 21자 이하이어야 합니다."));
+                        .value(messageSource.getMessage("user.password.size", null, LocaleContextHolder.getLocale())));
     }
 
     @ParameterizedTest
@@ -127,7 +164,7 @@ class UserControllerTest extends BaseControllerTest {
                         .content(requestJson))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.password")
-                        .value("비밀번호에 허용되지 않은 문자가 포함되어 있거나, 대문자/소문자/숫자를 포함해야 합니다."));
+                        .value(messageSource.getMessage("user.password.pattern", null, LocaleContextHolder.getLocale())));
     }
 
     @Override

@@ -26,7 +26,7 @@ public class UserService {
     public User join(final UserJoinRequest request) {
         if (userRepository.findByEmail(request.email()).isPresent()) {
             throw new UserException(
-                    HttpStatus.BAD_REQUEST,
+                    HttpStatus.CONFLICT,
                     messageSource.getMessage(
                             "user.email.duplicate",new String[]{request.email()}, LocaleContextHolder.getLocale()));
         }
