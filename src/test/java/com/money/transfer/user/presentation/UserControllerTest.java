@@ -56,14 +56,15 @@ class UserControllerTest extends BaseControllerTest {
         """;
 
         when(userService.join(any()))
-                .thenThrow(new UserException(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."));
+                .thenThrow(new UserException(HttpStatus.CONFLICT, messageSource.getMessage("user.email.duplicate", new String[]{"abcd@test.com"}, LocaleContextHolder.getLocale())));
 
         // when & then
         mockMvc.perform(post("/api/users/join")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestJson))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("이미 사용 중인 이메일입니다."));
+                .andExpect(jsonPath("$.message")
+                        .value(messageSource.getMessage("user.email.duplicate", new String[]{"abcd@test.com"}, LocaleContextHolder.getLocale())));
     }
 
     @Test
