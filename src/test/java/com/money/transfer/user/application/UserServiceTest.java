@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.money.transfer.common.MessageResolver;
 import com.money.transfer.exception.UserException;
 import com.money.transfer.user.common.UserMapper;
 import com.money.transfer.user.domain.User;
@@ -30,17 +31,14 @@ class UserServiceTest {
     @Mock
     private UserEntityRepository userRepository;
 
-    private ResourceBundleMessageSource messageSource;
+    @Mock
+    private MessageResolver messageResolver;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
 
-        messageSource = new ResourceBundleMessageSource();
-        messageSource.setBasename("messages");
-        messageSource.setDefaultEncoding("UTF-8");
-
-        userService = new UserService(messageSource, userRepository);
+        userService = new UserService(messageResolver, userRepository);
     }
 
     @Test
@@ -76,10 +74,9 @@ class UserServiceTest {
         assertThatThrownBy(() -> userService.join(request))
                 .isInstanceOf(UserException.class)
                 .hasMessage(
-                        messageSource.getMessage(
+                        messageResolver.getExceptionMessage(
                                 "user.email.duplicate",
-                                new Object[]{request.email()},
-                                LocaleContextHolder.getLocale()
+                                request.email()
                         )
                 );
 

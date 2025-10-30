@@ -34,4 +34,11 @@ public class GlobalExceptionHandler {
                 .body(ex.getErrorResponse());
     }
 
+    @ExceptionHandler(AuthException.class)
+    public ResponseEntity<ErrorResponse> handleAuthException(final AuthException ex) {
+        return ResponseEntity
+                .status(ex.getStatus())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(ex.getErrorResponse());
+    }
 }
