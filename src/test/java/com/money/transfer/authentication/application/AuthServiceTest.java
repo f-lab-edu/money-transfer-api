@@ -108,7 +108,7 @@ class AuthServiceTest {
         final String email = "test@test.com";
         final String inputCode = "123456";
 
-        when(cache.get(email, String.class)).thenReturn(null);
+        when(cache.get("AUTH:EMAIL:" + email, String.class)).thenReturn(null);
         when(messageResolver.getExceptionMessage("auth.email.codeExpired"))
                 .thenReturn("인증 코드가 만료되었습니다.");
 
@@ -126,7 +126,7 @@ class AuthServiceTest {
         final String email = "test@test.com";
         final String inputCode = "123456";
 
-        when(cache.get(email, String.class)).thenReturn("999999");
+        when(cache.get("AUTH:EMAIL:" + email, String.class)).thenReturn("999999");
         when(messageResolver.getExceptionMessage("auth.email.codeInvalid"))
                 .thenReturn("인증 코드가 올바르지 않습니다.");
 
@@ -144,12 +144,12 @@ class AuthServiceTest {
         final String email = "test@test.com";
         final String inputCode = "654321";
 
-        when(cache.get(email, String.class)).thenReturn("654321");
+        when(cache.get("AUTH:EMAIL:" + email, String.class)).thenReturn("654321");
 
         // when
         authService.verifyEmail(email, inputCode);
 
         // then
-        verify(cache, times(1)).evict(email);
+        verify(cache, times(1)).evict("AUTH:EMAIL:" + email);
     }
 }

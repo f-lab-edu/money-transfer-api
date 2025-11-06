@@ -9,8 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CachePut;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -38,7 +36,7 @@ public class AuthService {
         sendEmailWithCode(email, generateAuthCode(email));
     }
 
-    @CachePut(value = "emailAuthCode", key = "#email")
+    @CachePut(value = "emailAuthCode", key = "'AUTH:EMAIL:' + #email")
     public String generateAuthCode(final String email) {
         return String.format("%06d", (int)(Math.random() * 1000000));
     }
@@ -69,7 +67,7 @@ public class AuthService {
 
     public void verifyEmail(final String email, final String authCode) {
         final Cache cache = cacheManager.getCache("emailAuthCode");
-        final String cachedAuthCode = cache.get(email, String.class);
+        final String cachedAuthCode = cache.get("AUTH:EMAIL:" + email, String.class);
 
         if (cachedAuthCode == null) {
             throw new AuthException(
@@ -83,6 +81,6 @@ public class AuthService {
                     messageResolver.getExceptionMessage("auth.email.codeInvalid"));
         }
 
-        cache.evict(email);
+        cache.evict("AUTH:EMAIL:" + email);
     }
 }

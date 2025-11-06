@@ -1,23 +1,32 @@
 package com.money.transfer.common;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 
 @Configuration
 @EnableCaching
 public class CacheConfig {
 
     @Bean
-    public CacheManager cacheManager() {
-        final CaffeineCacheManager cacheManager = new CaffeineCacheManager("emailAuthCode");
-        cacheManager.setCaffeine(Caffeine.newBuilder()
-                .expireAfterWrite(2, TimeUnit.MINUTES)
-                .maximumSize(1000));
-        return cacheManager;
+    public CacheManager cacheManager(final RedisConnectionFactory connectionFactory) {
+        final RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(30));
+
+        final Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
+        cacheConfigurations.put("emailAuthCode",
+                RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofMinutes(2)));
+
+        return RedisCacheManager.builder(connectionFactory)
+                .cacheDefaults(defaultConfig)
+                .withInitialCacheConfigurations(cacheConfigurations)
+                .build();
     }
 }
