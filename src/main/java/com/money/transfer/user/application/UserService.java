@@ -1,6 +1,7 @@
 package com.money.transfer.user.application;
 
 import com.money.transfer.authentication.domain.PasswordEncoder;
+import com.money.transfer.common.MessageResolver;
 import com.money.transfer.exception.UserException;
 import com.money.transfer.user.common.UserMapper;
 import com.money.transfer.user.domain.User;
@@ -18,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class UserService {
 
-    private final MessageSource messageSource;
+    private final MessageResolver messageResolver;
 
     private final UserEntityRepository userRepository;
 
@@ -27,8 +28,8 @@ public class UserService {
         if (userRepository.findByEmail(request.email()).isPresent()) {
             throw new UserException(
                     HttpStatus.CONFLICT,
-                    messageSource.getMessage(
-                            "user.email.duplicate",new String[]{request.email()}, LocaleContextHolder.getLocale()));
+                    messageResolver.getExceptionMessage(
+                            "user.email.duplicate", request.email()));
         }
 
         final String encodedPassword = PasswordEncoder.encode(request.password());
