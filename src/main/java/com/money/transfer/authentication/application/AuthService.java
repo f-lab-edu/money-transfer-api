@@ -1,14 +1,14 @@
 package com.money.transfer.authentication.application;
 
+import com.money.transfer.authentication.domain.CacheKey;
 import com.money.transfer.common.MessageResolver;
 import com.money.transfer.exception.AuthException;
 import com.money.transfer.user.domain.UserEntityRepository;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.CachePut;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -20,11 +20,11 @@ public class AuthService {
 
     private final JavaMailSender mailSender;
 
-    private final CacheManager cacheManager;
-
     private final MessageResolver messageResolver;
 
     private final UserEntityRepository userEntityRepository;
+
+    private final RedisTemplate<String, String> redisTemplate;
 
     public void sendEmail(final String email) {
         if (userEntityRepository.findByEmail(email).isPresent()) {
@@ -36,9 +36,11 @@ public class AuthService {
         sendEmailWithCode(email, generateAuthCode(email));
     }
 
-    @CachePut(value = "emailAuthCode", key = "'AUTH:EMAIL:' + #email")
-    public String generateAuthCode(final String email) {
-        return String.format("%06d", (int)(Math.random() * 1000000));
+    private String generateAuthCode(final String email) {
+        final String authCode = String.format("%06d", (int) (Math.random() * 1_000_000));
+        final String key = CacheKey.AUTH_EMAIL + email;
+        redisTemplate.opsForValue().set(key, authCode, Duration.ofMinutes(2));
+        return authCode;
     }
 
     private void sendEmailWithCode(final String toEmail, final String authCode) {
@@ -66,8 +68,8 @@ public class AuthService {
     }
 
     public void verifyEmail(final String email, final String authCode) {
-        final Cache cache = cacheManager.getCache("emailAuthCode");
-        final String cachedAuthCode = cache.get("AUTH:EMAIL:" + email, String.class);
+        final String key = CacheKey.AUTH_EMAIL + email;
+        final String cachedAuthCode = redisTemplate.opsForValue().get(key);
 
         if (cachedAuthCode == null) {
             throw new AuthException(
@@ -81,6 +83,6 @@ public class AuthService {
                     messageResolver.getExceptionMessage("auth.email.codeInvalid"));
         }
 
-        cache.evict("AUTH:EMAIL:" + email);
+        redisTemplate.delete(key);
     }
 }

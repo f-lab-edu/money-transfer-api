@@ -2,25 +2,23 @@ package com.money.transfer.authentication.application;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
+import com.money.transfer.authentication.domain.CacheKey;
 import com.money.transfer.common.MessageResolver;
 import com.money.transfer.exception.AuthException;
 import com.money.transfer.user.domain.UserEntityRepository;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import java.time.Duration;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.mail.javamail.JavaMailSender;
 
 class AuthServiceTest {
@@ -32,7 +30,10 @@ class AuthServiceTest {
     private JavaMailSender mailSender;
 
     @Mock
-    private CacheManager cacheManager;
+    private RedisTemplate<String, String> redisTemplate;
+
+    @Mock
+    private ValueOperations<String, String> valueOperations;
 
     @Mock
     private MessageResolver messageResolver;
@@ -40,13 +41,10 @@ class AuthServiceTest {
     @Mock
     private UserEntityRepository userRepository;
 
-    @Mock
-    private Cache cache;
-
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        when(cacheManager.getCache("emailAuthCode")).thenReturn(cache);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
 
     @Test
@@ -65,6 +63,7 @@ class AuthServiceTest {
                 .hasMessage("이미 가입된 이메일입니다.");
 
         verify(mailSender, never()).send(any(MimeMessage.class));
+        verify(redisTemplate, never()).opsForValue();
     }
 
     @Test
@@ -80,6 +79,8 @@ class AuthServiceTest {
         authService.sendEmail(email);
 
         // then
+        verify(valueOperations, times(1))
+                .set(startsWith(CacheKey.AUTH_EMAIL), anyString(), eq(Duration.ofMinutes(2)));
         verify(mailSender, times(1)).send(mimeMessage);
     }
 
@@ -107,8 +108,9 @@ class AuthServiceTest {
         // given
         final String email = "test@test.com";
         final String inputCode = "123456";
+        final String key = CacheKey.AUTH_EMAIL + email;
 
-        when(cache.get("AUTH:EMAIL:" + email, String.class)).thenReturn(null);
+        when(valueOperations.get(key)).thenReturn(null);
         when(messageResolver.getExceptionMessage("auth.email.codeExpired"))
                 .thenReturn("인증 코드가 만료되었습니다.");
 
@@ -117,7 +119,7 @@ class AuthServiceTest {
                 .isInstanceOf(AuthException.class)
                 .hasMessage("인증 코드가 만료되었습니다.");
 
-        verify(cache, never()).evict(email);
+        verify(redisTemplate, never()).delete(key);
     }
 
     @Test
@@ -125,8 +127,9 @@ class AuthServiceTest {
         // given
         final String email = "test@test.com";
         final String inputCode = "123456";
+        final String key = CacheKey.AUTH_EMAIL + email;
 
-        when(cache.get("AUTH:EMAIL:" + email, String.class)).thenReturn("999999");
+        when(valueOperations.get(key)).thenReturn("999999");
         when(messageResolver.getExceptionMessage("auth.email.codeInvalid"))
                 .thenReturn("인증 코드가 올바르지 않습니다.");
 
@@ -135,7 +138,7 @@ class AuthServiceTest {
                 .isInstanceOf(AuthException.class)
                 .hasMessage("인증 코드가 올바르지 않습니다.");
 
-        verify(cache, never()).evict(email);
+        verify(redisTemplate, never()).delete(key);
     }
 
     @Test
@@ -143,13 +146,14 @@ class AuthServiceTest {
         // given
         final String email = "test@test.com";
         final String inputCode = "654321";
+        final String key = CacheKey.AUTH_EMAIL + email;
 
-        when(cache.get("AUTH:EMAIL:" + email, String.class)).thenReturn("654321");
+        when(valueOperations.get(key)).thenReturn("654321");
 
         // when
         authService.verifyEmail(email, inputCode);
 
         // then
-        verify(cache, times(1)).evict("AUTH:EMAIL:" + email);
+        verify(redisTemplate, times(1)).delete(key);
     }
 }
